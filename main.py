@@ -128,7 +128,6 @@ def quantum(page: ft.Page):
 
     def atualizar_sugestoes(e, consolidado_entrada, page):
         sugestoes.visible = True
-        # Filtrar opções com base no texto de input
         opcoes = [opcao for opcao in opcoes_cosolidado if consolidado_entrada.value.lower() in opcao.lower()]
         sugestoes.controls.clear()
         for opcao in opcoes:
@@ -197,9 +196,6 @@ def quantum(page: ft.Page):
         ano = ano_entrada.value.strip()
         mes = mes_menu.value.strip().upper()
         consolidado = consolidado_entrada.value
-
-
-        # mes_num = meses[mes_menu]
 
         try:
             pg_conn = psycopg2.connect(
@@ -291,16 +287,6 @@ def quantum(page: ft.Page):
 
     file_picker.on_result = salvar_arquivo
 
-
-    # nome = ft.Text(
-    #     "Quantum",
-    #     size=30,
-    #     weight="bold",
-    #     font_family="inter",
-    #     color="#FFFFFF"
-    # )
-
-
     img = ft.Image(
         src="./img/icone.svg",
         width= 80,
@@ -311,7 +297,6 @@ def quantum(page: ft.Page):
     ano_entrada = ft.TextField(
         label="Escolha o ano", 
         width=169,
-        # bgcolor="#FFFFFF",
         color="#000000",
         border_color="#CED4DA",
         border_width=1,
@@ -358,7 +343,6 @@ def quantum(page: ft.Page):
         on_change=lambda e: atualizar_sugestoes(e, consolidado_entrada, page),
         expand=True,
         width=345,
-        # bgcolor="#c2efff",
         color="#000000",
         border_color="#CED4DA",
         border_width=1,
@@ -372,7 +356,6 @@ def quantum(page: ft.Page):
             weight="w500",
             font_family="inter",
         ),
-        # on_blur= lambda e: fechar(e, page),
         focused_border_color='#0064FF'
     )
 
@@ -419,11 +402,6 @@ def quantum(page: ft.Page):
         visible=False,
         color='#0064FF'
         )
-
-
-
-
-
 
     page.add(
         ft.Column([img,
