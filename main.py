@@ -6,6 +6,8 @@ import re
 from unidecode import unidecode
 from lists import meses, lista_consolidado
 from dbs import *
+from sql_sicad import sicad
+from sql_sisp import sisp
 
 def quantum(page: ft.Page):
     page.title="Quantum"
@@ -19,7 +21,7 @@ def quantum(page: ft.Page):
     page.window.width = 633
     page.window.min_width = 633
     page.bgcolor = "#FFFFFF"
-    page.theme_mode = 'Ligth'
+    page.theme_mode = 'Light'
     page.fonts = {
         "inter": "./fonts/Inter-VariableFont_opsz,wght.ttf",
     }
@@ -40,12 +42,13 @@ def quantum(page: ft.Page):
             alerta = ft.AlertDialog(
                 title=ft.Text(
                     "Erro", 
-                    color='read',
+                    color='#FFFFFF',
                     font_family='inter'),
                 content=ft.Text(
                     message,
                     size=15,
-                    font_family='inter'),
+                    font_family='inter',
+                    color='#FFFFFF',),
                 actions=[ft.TextButton(
                     "OK", 
                     on_click=lambda e: page.close(alerta),
@@ -206,14 +209,8 @@ def quantum(page: ft.Page):
         password=PG_PASSWORD
     )
             pg_cur = pg_conn.cursor()
-            pg_cur.execute("""
-                SELECT s.nro_bop, s.data_fato, r.relato, s.consolidado, s.unidade_responsavel, s.unidade_origem, s.municipios
-                FROM sicadfull s
-                join relatos_2 r on s.nro_bop = r.nro_bop
-                WHERE consolidado = %s
-                AND ano_fato = %s
-                AND mes_fato = %s
-            """, (consolidado,ano, mes))
+            pg_cur.execute(sicad,(consolidado,ano,mes))
+
             pg_data = []
 
             for row in pg_cur.fetchall():
@@ -236,14 +233,8 @@ def quantum(page: ft.Page):
 
             ora_conn = sisp_
             ora_cur = ora_conn.cursor()
-            ora_cur.execute(f"""
-                SELECT FORMAT_MASK_BOPPROC(br.ID_UNIDADE, br.NR_BOP) AS "BOP",
-                TO_CHAR(b.dt_fato, 'DD/MM/YYYY') AS data_fato,
-                DS_RELATO
-                FROM BOP_REFERENCIA br
-                JOIN BOP b ON br.ID_BOP_REFERENCIA = b.ID_BOP_REFERENCIA AND br.ID_BOP = b.ID_BOP 
-                WHERE FORMAT_MASK_BOPPROC(br.ID_UNIDADE, br.NR_BOP) in ({bop_values_str})
-            """)
+            ora_cur.execute(sisp % bop_values_str)
+
             ora_data = []
             
             for o_row in ora_cur.fetchall():
