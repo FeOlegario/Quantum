@@ -6,8 +6,9 @@ import re
 from unidecode import unidecode
 from lists import meses, lista_consolidado
 from dbs import *
-from sql_sicad import sicad
-from sql_sisp import sisp
+from sql_sicad import sicad, sicad_desaparecimento
+from sql_sisp import sisp, procurar_sisp
+import datetime
 
 def quantum(page: ft.Page):
     page.title="Quantum"
@@ -63,6 +64,33 @@ def quantum(page: ft.Page):
                     ))
                     ],
                 bgcolor= '#EB2939'
+            )
+            page.open(alerta)
+        elif color == "orange":
+            alerta = ft.AlertDialog(
+                title=ft.Text(
+                    "Alerta", 
+                    color='#000000',
+                    font_family='inter'),
+                content=ft.Text(
+                    message,
+                    size=15,
+                    font_family='inter',
+                    color='#000000',),
+                actions=[ft.TextButton(
+                    "OK", 
+                    on_click=lambda e: page.close(alerta),
+                    style=ft.ButtonStyle(
+                        color='#0064FF',
+                        bgcolor={
+                                ft.ControlState.DEFAULT: "#FFFFFF",
+                                ft.ControlState.FOCUSED: "#5caee0",
+                                ft.ControlState.PRESSED: "#4990e2",
+                                ft.ControlState.DISABLED: "#cccccc"
+                            }
+                    ))
+                    ],
+                bgcolor= '#FFFFFF'
             )
             page.open(alerta)
         else:
@@ -153,6 +181,15 @@ def quantum(page: ft.Page):
         sugestoes.visible = False
         page.update()
 
+    def anos():
+        ano_atual = datetime.datetime.now().year
+        anos = list(range(2010, ano_atual + 1))
+        opcoes = []
+        for ano in anos:
+            opcoes.append(
+                ft.dropdown.Option(str(ano))
+            )
+        return opcoes
 
 
     def pesquisando(e):
@@ -167,24 +204,21 @@ def quantum(page: ft.Page):
             aviso("Por favor, insira um ano válido e selecione um mês.", color="red")
             page.update()
             return
-        
-        if ano_entrada.value == '' or not ano_entrada.value.isdigit() or len(ano_entrada.value) > 4 or len(ano_entrada.value) < 4:
+        elif ano_entrada.value == '' or not ano_entrada.value.isdigit() or len(ano_entrada.value) > 4 or len(ano_entrada.value) < 4:
             fechar(e,page)
             esconder_avisos() 
             carregando.visible = False  
             aviso("Por favor, insira um ano válido.", color="red")
             page.update()
             return
-        
-        if mes_menu.value not in meses:
+        elif mes_menu.value not in meses:
             fechar(e,page)
             esconder_avisos() 
             carregando.visible = False  
             aviso("Por favor, selecione um mês.", color="red")
             page.update()
             return
-        
-        if consolidado_entrada.value == '' or consolidado_entrada.value not in lista_consolidado:
+        elif consolidado_entrada.value == '' or consolidado_entrada.value not in lista_consolidado:
             fechar(e,page)
             esconder_avisos() 
             carregando.visible = False  
@@ -197,15 +231,21 @@ def quantum(page: ft.Page):
         mes = mes_menu.value.strip().upper()
         consolidado = consolidado_entrada.value
 
+        # print('='*300)
+        # print(ano, mes, consolidado)
+        # print()
+
         try:
-            pg_conn = psycopg2.connect(
-        host=PG_HOST,
-        database=PG_DBNAME,
-        user=PG_USER,
-        password=PG_PASSWORD
-    )
+            pg_conn = psycopg2.connect(host=PG_HOST,database=PG_DBNAME,user=PG_USER,password=PG_PASSWORD)
+            ora_conn = sisp_
+
+            ora_cur = ora_conn.cursor()
             pg_cur = pg_conn.cursor()
-            pg_cur.execute(sicad,(consolidado,ano,mes))
+
+            if consolidado == 'DESAPARECIMENTO DE PESSOA':
+                pg_cur.execute(sicad_desaparecimento,(consolidado,ano,mes))
+            else:
+                pg_cur.execute(sicad,(consolidado,ano,mes))
 
             pg_data = []
 
@@ -214,39 +254,67 @@ def quantum(page: ft.Page):
                 data_fato = row[1]
                 relato = re.sub(r'<.*?>','', unidecode(row[2]))
                 relato2 = relato.replace('&NBSP;','')
+                relato2 = relato2.split()
+                relato2 = ' '.join(relato2)
                 consolidado = row[3]
                 unidade_responsavel = row[4]
                 unidade_origem = row[5]
                 municipio = row[6]
                 pg_data.append((bop, data_fato, relato2 ,consolidado, unidade_responsavel, unidade_origem,municipio))
-
-
-            pg_cur.close()
-            pg_conn.close()
-
-            bop_values = tuple(bop for bop, _, _, _, _, _,_ in pg_data)
-            bop_values_str = ", ".join([f"'{bop}'" for bop in bop_values])
-
-            ora_conn = sisp_
-            ora_cur = ora_conn.cursor()
-            ora_cur.execute(sisp % bop_values_str)
-
-            ora_data = []
             
-            for o_row in ora_cur.fetchall():
-                bop = o_row[0]
-                data_fato = o_row[1]
-                relato_clob = re.sub(r'<.*?>','',unidecode(o_row[2].read().upper()))
-                relato_t = relato_clob.replace('&NBSP;','')
-                ora_data.append((bop, data_fato, relato_t))
+            
 
-            ora_cur.close()
-            ora_conn.close()
 
+            # pg_cur.close()
+            # pg_conn.close()
+
+            bop_values = tuple(bop for bop,*_ in pg_data)
+            # print(bop_values)
+            # print(bop_values)
+            # bop_values_str = ", ".join([f"'{bop}'" for bop in bop_values])
+            # print(bop_values_str)
+
+            # 
+            result = []
+            for bop in bop_values:
+                # print('sicad',bop)
+                bop = re.sub(r'[.-]','',bop)
+                unidade = re.search(r'(\d+)/',bop).group(1)
+                numero = re.search(r'/(\d+)',bop).group(1)
+
+                ora_cur.execute(procurar_sisp(unidade,numero))
+                for resultados in ora_cur.fetchall():
+                    bop_sisp = resultados[0]
+                    data_fato_o = resultados[1]
+                    relato_clob_o = re.sub(r'<.*?>','',unidecode(resultados[2].read().upper()))
+                    relato_t_o = relato_clob_o.replace('&NBSP;','')
+                    relato_t_o = relato_t_o.split()
+                    relato_t_o = ' '.join(relato_t_o)
+                    result.append((bop_sisp, data_fato_o, relato_t_o))
+
+            # print(result)
+
+            # # ora_cur.execute(sisp % bop_values_str)
+
+            # ora_data = []
+            
+            # for o_row in ora_cur.fetchall():
+            #     bop = o_row[0]
+            #     data_fato = o_row[1]
+            #     relato_clob = re.sub(r'<.*?>','',unidecode(o_row[2].read().upper()))
+            #     relato_t = relato_clob.replace('&NBSP;','')
+            #     relato_t = relato_t.split()
+            #     relato_t = ' '.join(relato_t)
+            #     ora_data.append((bop, data_fato, relato_t))
+
+            # print(ora_data)
+            # # ora_cur.close()
+            # # ora_conn.close()
+        
             diferentes = []
 
             for pg_row in pg_data:
-                for ora_row in ora_data:
+                for ora_row in result:
                     if pg_row[0] == ora_row[0] and pg_row[2] != ora_row[2]:
                         char_diff = abs(len(pg_row[2]) - len(ora_row[2]))
 
@@ -294,9 +362,12 @@ def quantum(page: ft.Page):
     )
 
 
-    ano_entrada = ft.TextField(
-        label="Escolha o ano", 
-        width=169,
+    
+    ano_entrada = ft.Dropdown(
+        label="Ano",
+        options=anos(),
+        width=166,
+        bgcolor="#FFFFFF",
         color="#000000",
         border_color="#CED4DA",
         border_width=1,
@@ -308,12 +379,13 @@ def quantum(page: ft.Page):
         ),
         text_style=ft.TextStyle(
             weight="w500",
-            font_family="inter"
+            font_family="inter",
         ),
         on_focus= lambda e: fechar(e, page),
         focused_border_color='#0064FF'
         )
-    
+
+
     mes_menu = ft.Dropdown(
         label="Mês",
         options=[
