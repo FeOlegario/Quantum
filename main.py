@@ -34,8 +34,9 @@ def quantum(page: ft.Page):
     sugestoes = ft.ListView(
         expand=True, 
         visible=False, 
-        width=435, 
+        width=345, 
         height=100,
+        cache_extent=20
         )
 
     def aviso(message, color=""):
@@ -196,15 +197,15 @@ def quantum(page: ft.Page):
         aviso("Pesquisando...", color="blue")
         carregando.visible = True  
         page.update()
-
-        if ano_entrada.value == '' and mes_menu not in meses:
+        
+        if ano_entrada.value is None and mes_menu not in meses:
             fechar(e,page)
             esconder_avisos() 
             carregando.visible = False  
             aviso("Por favor, insira um ano válido e selecione um mês.", color="red")
             page.update()
             return
-        elif ano_entrada.value == '' or not ano_entrada.value.isdigit() or len(ano_entrada.value) > 4 or len(ano_entrada.value) < 4:
+        elif ano_entrada.value is None or not ano_entrada.value.isdigit() or len(ano_entrada.value) > 4 or len(ano_entrada.value) < 4:
             fechar(e,page)
             esconder_avisos() 
             carregando.visible = False  
@@ -318,6 +319,8 @@ def quantum(page: ft.Page):
                     if pg_row[0] == ora_row[0] and pg_row[2] != ora_row[2]:
                         char_diff = abs(len(pg_row[2]) - len(ora_row[2]))
 
+                        if char_diff <=10:
+                            continue
                         if char_diff >= 90:
                             observacao = "Possível aditamento"
                         elif char_diff <= 90:
@@ -326,7 +329,12 @@ def quantum(page: ft.Page):
                         diferentes.append((ora_row[0], pg_row[1], ora_row[2], pg_row[2], pg_row[3], pg_row[5],pg_row[4], observacao, pg_row[6]))
 
             if not diferentes:
-                esconder_avisos()  
+                esconder_avisos()
+                carregando.visible = False  
+                aviso("Nenhuma diferença encontrada.", color="orange")
+                page.update()
+            elif char_diff <= 10:
+                esconder_avisos()
                 carregando.visible = False  
                 aviso("Nenhuma diferença encontrada.", color="orange")
                 page.update()
